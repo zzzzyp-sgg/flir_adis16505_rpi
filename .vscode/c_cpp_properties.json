@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/zyp/Acquisition/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/zyp/Acquisition/src/flir_camera_driver_adis16505/spinnaker_camera_driver/include/**",
+        "/usr/include/**",
+        "/opt/spinnaker/include"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
