@@ -41,6 +41,8 @@ include_directories(SYSTEM
                     ${Spinnaker_INCLUDE_DIRS}
                     ${catkin_INCLUDE_DIRS})
 include_directories(include)
+include_directories("/home/zyp/bcm/bcm2835-1.73/src")
+link_libraries("/home/zyp/bcm/bcm2835-1.73/src/libbcm2835.a")
 
 add_library(SpinnakerCameraLib src/SpinnakerCamera.cpp)
 
@@ -81,8 +83,11 @@ add_library(Diagnostics src/diagnostics.cpp)
 target_link_libraries(Diagnostics Camera SpinnakerCameraLib ${catkin_LIBRARIES})
 add_dependencies(Diagnostics ${PROJECT_NAME}_gencfg)
 
+add_library(ADIS16505 src/adis16505.cpp)
+target_link_libraries(ADIS16505 ${catkin_LIBRARIES})
+
 add_library(SpinnakerCameraNodelet src/nodelet.cpp)
-target_link_libraries(SpinnakerCameraNodelet Diagnostics SpinnakerCameraLib Camera Gh3 Cm3 ${catkin_LIBRARIES})
+target_link_libraries(SpinnakerCameraNodelet Diagnostics SpinnakerCameraLib Camera Gh3 Cm3 ADIS16505 ${catkin_LIBRARIES})
 
 add_executable(spinnaker_camera_node src/node.cpp)
 target_link_libraries(spinnaker_camera_node SpinnakerCameraLib ${catkin_LIBRARIES})

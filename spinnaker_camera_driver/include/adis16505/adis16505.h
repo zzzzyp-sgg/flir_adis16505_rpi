@@ -32,19 +32,26 @@ inline char* to_char(D x) {
 
 class ADIS16505{
 public:
-    ADIS16505(int dec_rate, int filter) : dec_rate_(dec_rate), filter_(filter) 
-    {
-        if (!bcm2835_spi_begin()) {
-            ROS_WARN("bcm2835_ispi_begin failed!\n");
-            init_bcm_ = false;
-        }
+    ADIS16505() : dec_rate_(0), filter_(0), frequency_(0), init_bcm_(true) {
+
     }
+
+    /* 设置相关的参数 */
+    void adisSetParam(int dec_rate, int filter);
 
     /* 启动设备 */
     bool setUp();
 
     /* 单次读取数据 */
     void adisSingleRead();
+
+    /* 关掉SPI */
+    void closeSPI();
+
+    /* get frequency value */
+    double adisGetFrequency() {
+        return frequency_;
+    }
 
 private:
     /* 设备初始化 */
@@ -68,10 +75,10 @@ public:
     /* 角速度和加速度 */
     double gyro_raw_[3], acc_raw_[3];
 private:
-    double frequency_;
     int dec_rate_;
     int filter_;
-    bool init_bcm_ = true;
+    double frequency_;
+    bool init_bcm_;
 };
 
 #endif

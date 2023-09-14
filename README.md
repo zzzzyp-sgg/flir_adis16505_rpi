@@ -1,13 +1,29 @@
-# flir_camera_driver
+# FLIR_ADIS16505_RPi
+
+程序基于树莓派4B实现开发及测试
+系统配置为：Ubuntu20.04 Server + ROS Noetic
+相机型号为：          Point Grey Research, Inc. Blackfly S BFS-U3-50S5M
+MEMS惯导型号为：      ADIS16505(ADIS16505-2/PCBZ)
+Spinnaker SDK版本为： spinnaker-2.6.0.160-arm64
+
+程序基于https://github.com/ros-drivers/flir_camera_driver.git修改
+
+## ADIS16505
+
+惯导的数据采集基于树莓派bcm2835库实现http://www.airspayce.com/mikem/bcm2835/index.html
+使用到了SPI通信
+目前实现非burst模式先的单次采集
+
+## flir_camera_driver
 
 This repository contains packages for FlirImaging's line of cameras. This repositories intent is to make use of Flir's newly developed SDK: Spinnaker. The camera driver is an evolution of pointgrey_camera_driver. It has been updated to use the new methods provided by the SDK.
 
-## Packages
+### Packages
 
-### Spinnaker Camera Driver
+#### Spinnaker Camera Driver
 The camera driver supports USB3 and GIGE cameras are planned. Note thats support for FireWire cameras is dropped in this SDK. The driver has been tested with a Blackfly S and Chameleon 3 camera. Differences between cameras requires that each camera model needs a customized interface class.  If your camera type is not included, consider contributing the interface by referring to the section bellow.
 
-##### Contributing
+###### Contributing
 Due to differences in parameter naming the configuration is separated from the main library. `camera.cpp` contains the base class `Camera` which can be extended to accommodate different cameras. The base class is based on BlackFly S and `cm3.cpp` extends it adding support for Chameleon3. To add a camera create a new derived class of `Camera` and add the model name to the check in `SpinnakerCamera::connect`.
 
 When contributing make sure the travis job suceeds and please use [roscpp_code_format](https://github.com/davetcoleman/roscpp_code_format) to format your code.

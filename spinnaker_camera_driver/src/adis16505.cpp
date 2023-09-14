@@ -1,6 +1,18 @@
-#include "adis16505.h"
+#include "adis16505/adis16505.h"
 
 bool ADIS16505::setUp() {
+    if (!bcm2835_init()){
+      printf("bcm2835_init failed! Are you running as root?\n");
+      return false;
+    }
+
+    if (!bcm2835_spi_begin()) {
+        ROS_WARN("bcm2835_spi_begin failed! Are you running as root?\n");
+        init_bcm_ = false;
+    } else {
+        ROS_INFO("SPI connection is successful.\n");
+    }
+    
     // 初始化设备
     bool isInit = initADIS16505();
 
@@ -13,6 +25,17 @@ bool ADIS16505::setUp() {
     }
 
     return true;
+}
+
+void ADIS16505::adisSetParam(int dec_rate, int filter) {
+    dec_rate_ = dec_rate;
+    filter_ = filter;
+    ROS_INFO("DEC_RATE is set to:%d, FILTER is set to:%d\n", dec_rate_, filter_);
+}
+
+void ADIS16505::closeSPI() {
+    bcm2835_spi_end();
+    bcm2835_close();
 }
 
 bool ADIS16505::initADIS16505()
