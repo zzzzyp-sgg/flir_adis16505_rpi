@@ -6,7 +6,7 @@
 MEMS惯导型号为：      ADIS16505(ADIS16505-2/PCBZ)  
 Spinnaker SDK版本为： spinnaker-2.6.0.160-arm64
   
-程序基于https://github.com/ros-drivers/flir_camera_driver.git修改
+程序基于https://github.com/ros-drivers/flir_camera_driver.git 修改
 
 ## ADIS16505
 
