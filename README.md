@@ -1,17 +1,17 @@
 # FLIR_ADIS16505_RPi
 
-程序基于树莓派4B实现开发及测试
-系统配置为：Ubuntu20.04 Server + ROS Noetic
-相机型号为：          Point Grey Research, Inc. Blackfly S BFS-U3-50S5M
-MEMS惯导型号为：      ADIS16505(ADIS16505-2/PCBZ)
+程序基于树莓派4B实现开发及测试  
+系统配置为：Ubuntu20.04 Server + ROS Noetic  
+相机型号为：          Point Grey Research, Inc. Blackfly S BFS-U3-50S5M  
+MEMS惯导型号为：      ADIS16505(ADIS16505-2/PCBZ)  
 Spinnaker SDK版本为： spinnaker-2.6.0.160-arm64
-
+  
 程序基于https://github.com/ros-drivers/flir_camera_driver.git修改
 
 ## ADIS16505
 
-惯导的数据采集基于树莓派bcm2835库实现http://www.airspayce.com/mikem/bcm2835/index.html
-使用到了SPI通信
+惯导的数据采集基于树莓派bcm2835库实现http://www.airspayce.com/mikem/bcm2835/index.html  
+使用到了SPI通信  
 目前实现非burst模式先的单次采集
 
 ## flir_camera_driver
