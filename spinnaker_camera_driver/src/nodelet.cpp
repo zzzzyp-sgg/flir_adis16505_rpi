@@ -752,6 +752,8 @@ private:
 
     // set param
     adi_.adisSetParam(dec_rate_, filter_);
+    ROS_INFO("ADI DEC_RATE is: %d", adi_.adisGetDecRate());
+    ROS_INFO("ADI FILTER is: %d", adi_.adisGetFilter());
 
     // set up the device out of the loop
     bool adisConnected = adi_.setUp();

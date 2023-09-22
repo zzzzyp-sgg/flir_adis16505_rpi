@@ -50,7 +50,17 @@ public:
 
     /* get frequency value */
     double adisGetFrequency() {
-        return frequency_;
+        return this->frequency_;
+    }
+
+    /* get dec_rate value */
+    int adisGetDecRate() {
+        return this->dec_rate_;
+    }
+
+    /* get filter value */
+    int adisGetFilter() {
+        return this->filter_;
     }
 
 private:

@@ -6,15 +6,13 @@
 MEMS惯导型号为：      ADIS16505(ADIS16505-2/PCBZ)  
 Spinnaker SDK版本为： spinnaker-2.6.0.160-arm64
   
-程序整体基于https://github.com/ros-drivers/flir_camera_driver.git 开发
+程序基于https://github.com/ros-drivers/flir_camera_driver.git修改
 
 ## ADIS16505
 
 惯导的数据采集基于树莓派bcm2835库实现http://www.airspayce.com/mikem/bcm2835/index.html  
 使用到了SPI通信  
-目前实现非burst模式下的单次采集  
-通过读写寄存器实现更新频率以及滤波等级的设置以及原始数据的采集  
-IMU部分程序开发思路可见我的个人博客https://blog.csdn.net/weixin_45432823/article/details/132417924
+目前实现非burst模式先的单次采集
 
 ## flir_camera_driver
 
