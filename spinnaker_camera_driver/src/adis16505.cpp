@@ -1,18 +1,41 @@
-#include "adis16505.h"
+#include "adis16505/adis16505.h"
 
 bool ADIS16505::setUp() {
+    if (!bcm2835_init()){
+      printf("bcm2835_init failed! Are you running as root?\n");
+      return false;
+    }
+
+    if (!bcm2835_spi_begin()) {
+        ROS_WARN("bcm2835_spi_begin failed! Are you running as root?\n");
+        init_bcm_ = false;
+    } else {
+        ROS_INFO("SPI connection is successful.");
+    }
+    
     // 初始化设备
     bool isInit = initADIS16505();
 
     // 连接信息的输出提示
     if (isInit) {
-        ROS_INFO("Connected to SPI device.\n");
+        ROS_INFO("Connected to SPI device.");
     } else {
-        ROS_WARN("Not connected to SPI device.\n");
+        ROS_WARN("Not connected to SPI device.");
         return false;
     }
 
     return true;
+}
+
+void ADIS16505::adisSetParam(int dec_rate, int filter) {
+    dec_rate_ = dec_rate;
+    filter_ = filter;
+    ROS_INFO("DEC_RATE is set to:%d, FILTER is set to:%d", dec_rate_, filter_);
+}
+
+void ADIS16505::closeSPI() {
+    bcm2835_spi_end();
+    bcm2835_close();
 }
 
 bool ADIS16505::initADIS16505()
@@ -65,7 +88,7 @@ uint16_t ADIS16505::adisReadReg(uint16_t addr) {
     if (addr == BURST_CMD)
         return false;
 
-    uint8_t wd[2] = {addr, 0x00};
+    uint8_t wd[2] = {(uint8_t)addr, 0x00};
     uint8_t rdat[2] = {0, 0};
     CS_LOW();
     bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
@@ -89,7 +112,8 @@ bool ADIS16505::adisSetSampleRate() {
     auto tmp = adisReadReg(DEC_RATE);
 
     /* 频率 frequency = 2000 / (1 + DEC_RATE) (Hz) */
-    frequency_ = 2000 / (1 + tmp);
+    this->frequency_ = 2000 / (1 + tmp);
+    ROS_INFO("sample frequency is:%f", this->frequency_);
 
     /// FIXME 加一个判断，判断频率是否设置正确了
     return true;
@@ -115,7 +139,7 @@ void ADIS16505::adisWriteReg(uint16_t addr, uint16_t val) {
 
 void ADIS16505::adisHardwareFilterSelect() {
     // adisRegWrite16bit(FILT_CTRL, dat); // Set digital filter
-    adisWriteReg(FILT_CTRL, filter_);
+    adisWriteReg(FILT_CTRL, this->filter_);
     uint8_t wd[2] = {FILT_CTRL, 0x00};
     uint8_t rdat[2] = {0, 0};
     CS_LOW();

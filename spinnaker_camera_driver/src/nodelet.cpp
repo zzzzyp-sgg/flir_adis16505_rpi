@@ -46,6 +46,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    @brief ROS nodelet for the Point Grey Chameleon Camera - Updated to use Spinnaker driver insteady of Flycapture
 */
 
+/**
+   @file nodelet.cpp
+   @author zyp
+   @date Sep 07, 2023
+   @brief add IMU acqusition thread
+*/
+
 // ROS and associated nodelet interface and PLUGINLIB declaration header
 #include "ros/ros.h"
 #include <pluginlib/class_list_macros.h>
@@ -54,9 +61,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "spinnaker_camera_driver/SpinnakerCamera.h"  // The actual standalone library for the Spinnakers
 #include "spinnaker_camera_driver/diagnostics.h"
 
+#include "adis16505/adis16505.h"
+
 #include <image_transport/image_transport.h>          // ROS library that allows sending compressed images
 #include <camera_info_manager/camera_info_manager.h>  // ROS library that publishes CameraInfo topics
 #include <sensor_msgs/CameraInfo.h>                   // ROS message header for CameraInfo
+#include <sensor_msgs/Imu.h>                          // ROS message header for IMU 
 
 #include <wfov_camera_msgs/WFOVImage.h>
 #include <image_exposure_msgs/ExposureSequence.h>  // Message type for configuring gain and white balance.
@@ -84,6 +94,7 @@ public:
 
   ~SpinnakerCameraNodelet()
   {
+    /* 析构函数，把各个线程都关掉了 */
     std::lock_guard<std::mutex> scopedLock(connect_mutex_);
 
     /* ROS诊断线程 */
@@ -110,6 +121,22 @@ public:
       {
         NODELET_ERROR("%s", e.what());
       }
+    }
+
+    /* IMU读取和发布线程 */
+    if (imuThread_)
+    {
+      imuThread_->interrupt();
+      imuThread_->join();
+    }
+    try
+    {
+      adi_.closeSPI();
+      NODELET_DEBUG_ONCE("SPI connection closed.\n");
+    }
+    catch(const std::runtime_error& e)
+    {
+      NODELET_ERROR("%s\n", e.what());
     }
   }
 
@@ -248,6 +275,14 @@ private:
     */
   }
 
+  void connectIb()
+  {
+    if (!imuThread_) {
+      /// 这里启动了IMU的线程
+      imuThread_.reset(new boost::thread(boost::bind(&spinnaker_camera_driver::SpinnakerCameraNodelet::imuPull, this)));
+    }
+  }
+
   /*!
   * \brief Serves as a psuedo constructor for nodelets.
   *
@@ -352,6 +387,16 @@ private:
     /// advertise这里规定了发布的topic
     image_transport::SubscriberStatusCallback cb = boost::bind(&SpinnakerCameraNodelet::connectCb, this);
     it_pub_ = it_->advertiseCamera("image_raw", queue_size, cb, cb);
+
+    pnh.param<int>("dec_rate", dec_rate_, 0);
+    pnh.param<int>("filter", filter_, 0);
+    pnh.param<int>("imu_size", imu_size_, 200);
+    
+    // TODO Publish imut topics using sensor_msgs/Imu
+    // imu_pub_ = std::make_shared<ros::Publisher>(nh.advertise<sensor_msgs::Imu>("data_raw", imu_size_));
+    // connectIb();
+    ros::SubscriberStatusCallback ib = boost::bind(&SpinnakerCameraNodelet::connectIb, this);
+    imu_pub_.reset(new ros::Publisher(nh.advertise<sensor_msgs::Imu>("/imu_data", imu_size_, ib, ib)));
 
     // Set up diagnostics
     updater_.setHardwareID("spinnaker_camera " + cinfo_name.str());
@@ -644,7 +689,7 @@ private:
             if (it_pub_.getNumSubscribers() > 0)
             {
               sensor_msgs::ImagePtr image(new sensor_msgs::Image(wfov_image->image));
-              /// 这里为啥要publish两边呢
+              /// 这里为啥要publish两次呢
               it_pub_.publish(image, ci_);
             }
           }
@@ -668,6 +713,73 @@ private:
       updater_.update();
     }
     NODELET_DEBUG_ONCE("Leaving thread.");
+  }
+
+  /**
+   * @brief publish imu data
+   * 
+  */
+  void publish_imu_data() {
+    sensor_msgs::Imu data;
+
+    // TODO 这里先暂时把frame_id_设为相机的
+    data.header.frame_id = frame_id_;
+    // TODO 这里的时间戳也暂时先这么设置
+    data.header.stamp    = ros::Time::now();
+
+    // TODO 发布的数据先就加速度和角速度
+    data.linear_acceleration.x = adi_.acc_raw_[0];
+    data.linear_acceleration.y = adi_.acc_raw_[1];
+    data.linear_acceleration.z = adi_.acc_raw_[2];
+    data.angular_velocity.x    = adi_.gyro_raw_[0];
+    data.angular_velocity.y    = adi_.gyro_raw_[1];
+    data.angular_velocity.z    = adi_.gyro_raw_[2];
+
+    // publish
+    imu_pub_->publish(data);
+  }
+  
+  void imuPull() {
+    enum State {
+      // None,
+      Init,
+      Connected,
+      DisConnected
+    };
+
+    State state = Init;
+    // State state_ = None;
+
+    // set param
+    adi_.adisSetParam(dec_rate_, filter_);
+    ROS_INFO("ADI DEC_RATE is: %d", adi_.adisGetDecRate());
+    ROS_INFO("ADI FILTER is: %d", adi_.adisGetFilter());
+
+    // set up the device out of the loop
+    bool adisConnected = adi_.setUp();
+    state = (adisConnected) ? Connected : DisConnected;
+
+    // define ros rate
+    ros::Rate loop_rate(adi_.adisGetFrequency());
+
+    while (!boost::this_thread::interruption_requested()) {
+      // bool state_changed = (state_ != state);
+      try 
+      {
+        // single sample
+        adi_.adisSingleRead();
+
+        // publish
+        publish_imu_data();
+      }
+      catch (std::runtime_error &e)
+      {
+        NODELET_ERROR("Read IMU data falsed! Error msg:%s", e.what());
+        state = DisConnected;
+      }
+      // sleep
+      loop_rate.sleep();
+    }
   }
 
   void gainWBCallback(const image_exposure_msgs::ExposureSequence& msg)
@@ -704,6 +816,8 @@ private:
   image_transport::CameraPublisher it_pub_;                        ///< CameraInfoManager ROS publisher
   std::shared_ptr<diagnostic_updater::DiagnosedPublisher<wfov_camera_msgs::WFOVImage> > pub_;  ///< Diagnosed
   std::shared_ptr<ros::Publisher> diagnostics_pub_;
+  // TODO imu数据发布
+  std::shared_ptr<ros::Publisher> imu_pub_;
   /// publisher, has to be
   /// a pointer because of
   /// constructor
@@ -717,10 +831,12 @@ private:
   double max_freq_;
 
   SpinnakerCamera spinnaker_;      ///< Instance of the SpinnakerCamera library, used to interface with the hardware.
+  ADIS16505 adi_;                  ///< IMU object
   sensor_msgs::CameraInfoPtr ci_;  ///< Camera Info message.
   std::string frame_id_;           ///< Frame id for the camera messages, defaults to 'camera'
   std::shared_ptr<boost::thread> pubThread_;  ///< The thread that reads and publishes the images.
   std::shared_ptr<boost::thread> diagThread_;  ///< The thread that reads and publishes the diagnostics.
+  std::shared_ptr<boost::thread> imuThread_;   ///< IMU thread that read ADI register and publish the gyro and acc data
 
   std::unique_ptr<DiagnosticsManager> diag_man;
 
@@ -745,6 +861,14 @@ private:
   int packet_size_;
   /// GigE packet delay:
   int packet_delay_;
+
+  // For IMU:
+  /// DEC_RATE -- control the frequency
+  int dec_rate_;
+  /// FILTER_CMD -- control the filter
+  int filter_;
+  /// IMU_SIZE -- control publish queue size
+  int imu_size_;
 
   /// Configuration:
   spinnaker_camera_driver::SpinnakerConfig config_;
